@@ -27,41 +27,36 @@
  */
 
 /* parses pkt header from buffer, returns false if failed */
-bool get_header(MBuf *data, PktHdr *pkt)
+bool get_header(MBuf *pkt, unsigned *pkt_type_p, unsigned *pkt_len_p)
 {
 	unsigned type;
 	unsigned len;
 	unsigned code;
 	unsigned got;
-	unsigned avail;
-	MBuf hdr;
 
-	mbuf_copy(data, &hdr);
-
-	if (mbuf_avail(&hdr) < NEW_HEADER_LEN) {
+	if (mbuf_avail(pkt) < 5) {
 		log_noise("get_header: less then 5 bytes available");
 		return false;
 	}
-	type = mbuf_get_char(&hdr);
+	type = mbuf_get_char(pkt);
 	if (type != 0) {
-		/* wire length does not include type byte */
-		len = mbuf_get_uint32(&hdr) + 1;
-		got = NEW_HEADER_LEN;
+		len = mbuf_get_uint32(pkt) + 1;
+		got = 5;
 	} else {
-		if (mbuf_get_char(&hdr) != 0) {
+		if (mbuf_get_char(pkt) != 0) {
 			log_noise("get_header: unknown special pkt");
 			return false;
 		}
 		/* dont tolerate partial pkt */
-		if (mbuf_avail(&hdr) < OLD_HEADER_LEN - 2) {
-			log_noise("get_header: less than 8 bytes for special pkt");
+		if (mbuf_avail(pkt) < 6) {
+			log_noise("get_header: less that 6 bytes for special pkt");
 			return false;
 		}
-		len = mbuf_get_uint16(&hdr);
-		code = mbuf_get_uint32(&hdr);
-		if (code == PKT_CANCEL)
+		len = mbuf_get_uint16(pkt);
+		code = mbuf_get_uint32(pkt);
+		if (code == 80877102)
 			type = PKT_CANCEL;
-		else if (code == PKT_SSLREQ)
+		else if (code == 80877103)
 			type = PKT_SSLREQ;
 		else if ((code >> 16) == 3 && (code & 0xFFFF) < 2)
 			type = PKT_STARTUP;
@@ -69,27 +64,14 @@ bool get_header(MBuf *data, PktHdr *pkt)
 			log_noise("get_header: unknown special pkt: len=%u code=%u", len, code);
 			return false;
 		}
-		got = OLD_HEADER_LEN;
+		got = 8;
 	}
-
-	/* don't believe nonsense */
-	if (len < got || len >= 0x80000000)
+	if (len < got || len > 0x80000000) {
+		log_error("corrupt packet header");
 		return false;
-
-	/* report pkt info */
-	pkt->type = type;
-	pkt->len = len;
-
-	/* fill apkt with only data for this pkt */
-	if (len > mbuf_avail(data))
-		avail = mbuf_avail(data);
-	else
-		avail = len;
-	mbuf_slice(data, avail, &pkt->data);
-
-	/* tag header as read */
-	mbuf_get_bytes(&pkt->data, got);
-
+	}
+	*pkt_type_p = type;
+	*pkt_len_p = len;
 	return true;
 }
 
@@ -117,15 +99,15 @@ bool send_pooler_error(PgSocket *client, bool send_ready, const char *msg)
 /*
  * Parse server error message and log it.
  */
-void log_server_error(const char *note, PktHdr *pkt)
+void log_server_error(const char *note, MBuf *pkt)
 {
 	const char *level = NULL, *msg = NULL, *val;
 	int type;
-	while (mbuf_avail(&pkt->data)) {
-		type = mbuf_get_char(&pkt->data);
+	while (mbuf_avail(pkt)) {
+		type = mbuf_get_char(pkt);
 		if (type == 0)
 			break;
-		val = mbuf_get_string(&pkt->data);
+		val = mbuf_get_string(pkt);
 		if (!val)
 			break;
 		if (type == 'S')
@@ -145,41 +127,35 @@ void log_server_error(const char *note, PktHdr *pkt)
  */
 
 /* add another server parameter packet to cache */
-bool add_welcome_parameter(PgSocket *server, PktHdr *pkt)
+bool add_welcome_parameter(PgSocket *server,
+			   unsigned pkt_type, unsigned pkt_len, MBuf *pkt)
 {
-	PgPool *pool = server->pool;
+	PgDatabase *db = server->pool->db;
 	PktBuf msg;
 	const char *key, *val;
 
-	if (pool->welcome_msg_ready)
+	if (db->welcome_msg_ready)
 		return true;
 
 	/* incomplete startup msg from server? */
-	if (incomplete_pkt(pkt))
+	if (pkt_len - 5 > mbuf_avail(pkt))
 		return false;
 
-	pktbuf_static(&msg, pool->welcome_msg + pool->welcome_msg_len,
-		      sizeof(pool->welcome_msg) - pool->welcome_msg_len);
+	pktbuf_static(&msg, db->welcome_msg + db->welcome_msg_len,
+		      sizeof(db->welcome_msg) - db->welcome_msg_len);
 
-	if (pool->welcome_msg_len == 0)
+	if (db->welcome_msg_len == 0)
 		pktbuf_write_AuthenticationOk(&msg);
 
-	key = mbuf_get_string(&pkt->data);
-	val = mbuf_get_string(&pkt->data);
+	key = mbuf_get_string(pkt);
+	val = mbuf_get_string(pkt);
 	if (!key || !val) {
-		disconnect_server(server, true, "broken ParameterStatus packet");
+		log_error("broken ParameterStatus packet");
 		return false;
 	}
-
-	slog_noise(server, "S: param: %s = %s", key, val);
-	if (varcache_set(&pool->orig_vars, key, val)) {
-		slog_noise(server, "interesting var: %s=%s", key, val);
-		varcache_set(&server->vars, key, val);
-	} else {
-		slog_noise(server, "uninteresting var: %s=%s", key, val);
-		pktbuf_write_ParameterStatus(&msg, key, val);
-		pool->welcome_msg_len += pktbuf_written(&msg);
-	}
+	log_debug("S: param: %s = %s", key, val);
+	pktbuf_write_ParameterStatus(&msg, key, val);
+	db->welcome_msg_len += pktbuf_written(&msg);
 
 	return true;
 }
@@ -187,10 +163,10 @@ bool add_welcome_parameter(PgSocket *server, PktHdr *pkt)
 /* all parameters processed */
 void finish_welcome_msg(PgSocket *server)
 {
-	PgPool *pool = server->pool;
-	if (pool->welcome_msg_ready)
+	PgDatabase *db = server->pool->db;
+	if (db->welcome_msg_ready)
 		return;
-	pool->welcome_msg_ready = 1;
+	db->welcome_msg_ready = 1;
 }
 
 bool welcome_client(PgSocket *client)
@@ -198,17 +174,14 @@ bool welcome_client(PgSocket *client)
 	int res;
 	uint8 buf[1024];
 	PktBuf msg;
-	PgPool *pool = client->pool;
+	PgDatabase *db = client->pool->db;
 
-	slog_noise(client, "P: welcome_client");
-	if (!pool->welcome_msg_ready)
+	log_noise("P: welcome_client");
+	if (!db->welcome_msg_ready)
 		return false;
 
 	pktbuf_static(&msg, buf, sizeof(buf));
-	pktbuf_put_bytes(&msg, pool->welcome_msg, pool->welcome_msg_len);
-
-	varcache_fill_unset(&pool->orig_vars, client);
-	varcache_add_params(&msg, &client->vars);
+	pktbuf_put_bytes(&msg, db->welcome_msg, db->welcome_msg_len);
 
 	/* give each client its own cancel key */
 	get_random_bytes(client->cancel_key, 8);
@@ -218,7 +191,7 @@ bool welcome_client(PgSocket *client)
 	/* send all together */
 	res = pktbuf_send_immidiate(&msg, client);
 	if (!res)
-		slog_warning(client, "unhandled failure to send welcome_msg");
+		log_warning("unhandled failure to send welcome_msg");
 
 	return true;
 }
@@ -237,7 +210,7 @@ static bool send_password(PgSocket *server, const char *enc_psw)
 
 static bool login_clear_psw(PgSocket *server)
 {
-	slog_debug(server, "P: send clear password");
+	log_debug("P: send clear password");
 	return send_password(server, server->pool->user->passwd);
 }
 
@@ -247,18 +220,19 @@ static bool login_crypt_psw(PgSocket *server, const uint8 *salt)
 	const char *enc;
 	PgUser *user = server->pool->user;
 
-	slog_debug(server, "P: send crypt password");
+	log_debug("P: send crypt password");
 	strncpy(saltbuf, (char *)salt, 2);
 	enc = crypt(user->passwd, saltbuf);
 	return send_password(server, enc);
 }
+
 
 static bool login_md5_psw(PgSocket *server, const uint8 *salt)
 {
 	char txt[MD5_PASSWD_LEN + 1], *src;
 	PgUser *user = server->pool->user;
 
-	slog_debug(server, "P: send md5 password");
+	log_debug("P: send md5 password");
 	if (!isMD5(user->passwd)) {
 		pg_md5_encrypt(user->passwd, user->name, strlen(user->name), txt);
 		src = txt + 3;
@@ -270,47 +244,50 @@ static bool login_md5_psw(PgSocket *server, const uint8 *salt)
 }
 
 /* answer server authentication request */
-bool answer_authreq(PgSocket *server, PktHdr *pkt)
+bool answer_authreq(PgSocket *server,
+		    unsigned pkt_type, unsigned pkt_len,
+		    MBuf *pkt)
 {
 	unsigned cmd;
 	const uint8 *salt;
 	bool res = false;
 
-	/* authreq body must contain 32bit cmd */
-	if (mbuf_avail(&pkt->data) < 4)
+	if (pkt_len < 5 + 4)
+		return false;
+	if (mbuf_avail(pkt) < pkt_len - 5)
 		return false;
 
-	cmd = mbuf_get_uint32(&pkt->data);
+	cmd = mbuf_get_uint32(pkt);
 	switch (cmd) {
 	case 0:
-		slog_debug(server, "S: auth ok");
+		log_debug("S: auth ok");
 		res = true;
 		break;
 	case 3:
-		slog_debug(server, "S: req cleartext password");
+		log_debug("S: req cleartext password");
 		res = login_clear_psw(server);
 		break;
 	case 4:
-		slog_debug(server, "S: req crypt psw");
-		if (mbuf_avail(&pkt->data) < 2)
+		if (pkt_len < 5 + 4 + 2)
 			return false;
-		salt = mbuf_get_bytes(&pkt->data, 2);
+		log_debug("S: req crypt psw");
+		salt = mbuf_get_bytes(pkt, 2);
 		res = login_crypt_psw(server, salt);
 		break;
 	case 5:
-		slog_debug(server, "S: req md5-crypted psw");
-		if (mbuf_avail(&pkt->data) < 4)
+		if (pkt_len < 5 + 4 + 4)
 			return false;
-		salt = mbuf_get_bytes(&pkt->data, 4);
+		log_debug("S: req md5-crypted psw");
+		salt = mbuf_get_bytes(pkt, 4);
 		res = login_md5_psw(server, salt);
 		break;
 	case 2: /* kerberos */
-	case 6: /* deprecated usage of SCM_RIGHTS */
-		slog_error(server, "unsupported auth method: %d", cmd);
+	case 6: /* scm something */
+		log_error("unsupported auth method: %d", cmd);
 		res = false;
 		break;
 	default:
-		slog_error(server, "unknown auth method: %d", cmd);
+		log_error("unknown auth method: %d", cmd);
 		res = false;
 		break;
 	}
@@ -337,44 +314,35 @@ int scan_text_result(MBuf *pkt, const char *tupdesc, ...)
 	int len;
 	unsigned ncol, i;
 	va_list ap;
-	int asked;
-	int *int_p;
-	uint64 *long_p;
-	char **str_p;
 
-	asked = strlen(tupdesc);
 	ncol = mbuf_get_uint16(pkt);
+	if (ncol != strlen(tupdesc))
+		fatal("different number of cols");
 
 	va_start(ap, tupdesc);
-	for (i = 0; i < asked; i++) {
-		if (i < ncol) {
-			len = mbuf_get_uint32(pkt);
-			if (len < 0)
-				val = NULL;
-			else
-				val = (char *)mbuf_get_bytes(pkt, len);
-		} else
-			/* tuple was shorter than requested */
+	for (i = 0; i < ncol; i++) {
+		len = mbuf_get_uint32(pkt);
+		if (len < 0)
 			val = NULL;
+		else
+			val = (char *)mbuf_get_bytes(pkt, len);
 
-		switch (tupdesc[i]) {
-		case 'i':
-			int_p = va_arg(ap, int *);
-			*int_p = atoi(val);
-			break;
-		case 'q':
-			long_p = va_arg(ap, uint64 *);
-			*long_p = atoll(val);
-			break;
-		case 's':
-			str_p = va_arg(ap, char **);
-			*str_p = val;
-			break;
-		default:
+		if (tupdesc[i] == 'i') {
+			int *dst_p = va_arg(ap, int *);
+			*dst_p = atoi(val);
+		} else if (tupdesc[i] == 'q') {
+			uint64 *dst_p = va_arg(ap, uint64 *);
+			*dst_p = atoll(val);
+		} else if (tupdesc[i] == 's') {
+			char **dst_p = va_arg(ap, char **);
+			*dst_p = val;
+		} else
 			fatal("bad tupdesc: %s", tupdesc);
-		}
 	}
 	va_end(ap);
+
+	if (mbuf_avail(pkt))
+		fatal("scan_text_result: unparsed data");
 
 	return ncol;
 }
