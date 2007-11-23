@@ -2,6 +2,9 @@
 2007-08-xx  -  PgBouncer 1.0.9  -  ""
 
   * Detect invalid packet header that could trigger int overflow.
+  * Include doc/ directory in final .tgz... (duh)
+  * auth_file modification check was broken, which made bouncer
+    reload it too often.
 
 2007-06-18  -  PgBouncer 1.0.8  -  "Undead Shovel Jutsu"
 
