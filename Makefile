@@ -1,16 +1,16 @@
 
 # sources
 SRCS = client.c loader.c objects.c pooler.c proto.c sbuf.c server.c util.c \
-       admin.c stats.c takeover.c md5.c janitor.c pktbuf.c system.c main.c \
-       varcache.c
+       admin.c stats.c takeover.c md5.c janitor.c pktbuf.c system.c main.c
 HDRS = client.h loader.h objects.h pooler.h proto.h sbuf.h server.h util.h \
        admin.h stats.h takeover.h md5.h janitor.h pktbuf.h system.h bouncer.h \
-       list.h mbuf.h varcache.h
+       list.h mbuf.h
 
 # data & dirs to include in tgz
 DATA = README NEWS etc/pgbouncer.ini Makefile config.mak.in config.h.in \
-       configure configure.ac debian/packages debian/changelog
-DIRS = etc src debian
+       configure configure.ac debian/packages debian/changelog \
+       doc/Makefile doc/config.txt doc/overview.txt doc/todo.txt doc/usage.txt
+DIRS = doc etc src debian
 
 # keep autoconf stuff separate
 -include config.mak
@@ -122,9 +122,4 @@ SPARCE_FLAGS=-D__LITTLE_ENDIAN__ -D__i386__ -D__GNUC__=3 -D__GNUC_MINOR__=0 \
 check: config.mak
 	$(E) "	CHECK" $(srcs)
 	$(Q) sparse $(SPARCE_FLAGS) $(srcs)
-
-pgbouncer.pg:
-	$(CC) -pg $(DEFS) -g -O2 $(CPPFLAGS) $(LDFLAGS) -o $@ $(srcs) $(LIBS)
-
-pg: pgbouncer.pg
 
