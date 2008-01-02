@@ -20,6 +20,10 @@ DIRS = doc etc src debian test
 # keep autoconf stuff separate
 -include config.mak
 
+# fill values for unconfigured tree
+srcdir ?= .
+builddir ?= .
+
 ifeq ($(enable_debug),yes)
 CFLAGS += -DDBGVER="\"compiled by <$${USER}@`hostname`> at `date '+%Y-%m-%d %H:%M:%S'`\""
 endif
@@ -100,7 +104,7 @@ realclean: distclean doc-realclean
 	rm -f tags
 
 # generate configure script and config.h.in
-boot: distclean
+boot:
 	autoreconf -i -f
 	rm -rf autom4te* config.h.in~
 
