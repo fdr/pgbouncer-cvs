@@ -55,6 +55,9 @@
 #ifdef HAVE_CRYPT_H
 #include <crypt.h>
 #endif
+#ifdef HAVE_LIBGEN_H
+#include <libgen.h>
+#endif
 
 #ifdef CASSERT
 #define Assert(e) do { if (!(e)) { \
@@ -103,6 +106,9 @@ size_t strlcat(char *dst, const char *src, size_t n);
 #endif
 #ifndef HAVE_GETPEEREID
 int getpeereid(int fd, uid_t *uid_p, gid_t *gid_p);
+#endif
+#ifndef HAVE_BASENAME
+const char *basename(const char *path);
 #endif
 
 void change_user(const char *user);

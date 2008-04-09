@@ -33,11 +33,18 @@ static bool set_auth(ConfElem *elem, const char *val, PgSocket *console);
 static const char *get_auth(ConfElem *elem);
 
 static const char *usage_str =
-"usage: pgbouncer [-d] [-R] [-q] [-v] [-h|-V] config.ini\n";
+"Usage: %s [OPTION]... config.ini\n"
+"  -d            Run in background (as a daemon)\n"
+"  -R            Do a online restart\n"
+"  -q            Run quietly\n"
+"  -v            Increase verbosity\n"
+"  -u <username> Assume identity of <username>\n"
+"  -V            Show version\n"
+"  -h            Show this help screen and exit\n";
 
-static void usage(int err)
+static void usage(int err, char *exe)
 {
-	printf(usage_str);
+	printf(usage_str, basename(exe));
 	exit(err);
 }
 
@@ -469,12 +476,13 @@ int main(int argc, char *argv[])
 			arg_username = optarg;
 			break;
 		case 'h':
+			usage(0, argv[0]);
 		default:
-			usage(1);
+			usage(1, argv[0]);
 		}
 	}
 	if (optind + 1 != argc)
-		usage(1);
+		usage(1, argv[0]);
 	cf_config_file = argv[optind];
 	load_config(false);
 
