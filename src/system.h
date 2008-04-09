@@ -105,3 +105,6 @@ size_t strlcat(char *dst, const char *src, size_t n);
 int getpeereid(int fd, uid_t *uid_p, gid_t *gid_p);
 #endif
 
+void change_user(const char *user);
+
+

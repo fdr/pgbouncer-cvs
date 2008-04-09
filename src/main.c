@@ -51,6 +51,7 @@ int cf_daemon = 0;
 int cf_pause_mode = P_NONE;
 int cf_shutdown = 0;
 int cf_reboot = 0;
+char *cf_username = "";
 static char *cf_config_file;
 
 char *cf_listen_addr = NULL;
@@ -121,6 +122,7 @@ ConfElem bouncer_params[] = {
 {"pool_mode",		true, {get_mode, set_mode}},
 {"max_client_conn",	true, CF_INT, &cf_max_client_conn},
 {"default_pool_size",	true, CF_INT, &cf_default_pool_size},
+{"user",		false, CF_STR, &cf_username},
 
 {"server_reset_query",	true, CF_STR, &cf_server_reset_query},
 {"server_check_query",	true, CF_STR, &cf_server_check_query},
@@ -443,9 +445,10 @@ static void main_loop_once(void)
 int main(int argc, char *argv[])
 {
 	int c;
+	char *arg_username = NULL;
 
 	/* parse cmdline */
-	while ((c = getopt(argc, argv, "avhdVR")) != EOF) {
+	while ((c = getopt(argc, argv, "avhdVRu:")) != EOF) {
 		switch (c) {
 		case 'R':
 			cf_reboot = 1;
@@ -462,6 +465,9 @@ int main(int argc, char *argv[])
 		case 'q':
 			cf_quiet = 1;
 			break;
+		case 'u':
+			arg_username = optarg;
+			break;
 		case 'h':
 		default:
 			usage(1);
@@ -471,6 +477,18 @@ int main(int argc, char *argv[])
 		usage(1);
 	cf_config_file = argv[optind];
 	load_config(false);
+
+	/* prefer cmdline over config for username */
+	if (arg_username)
+		set_config_param(bouncer_params, "user", arg_username, false, NULL);
+
+	/* switch user is needed */
+	if (*cf_username)
+		change_user(cf_username);
+
+	/* disallow running as root */
+	if (getuid() == 0)
+		fatal("PgBouncer should not run as root");
 
 	/* need to do that after loading config */
 	check_limits();
