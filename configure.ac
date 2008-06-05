@@ -3,6 +3,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(pgbouncer, 1.1.3rc1)
 AC_CONFIG_SRCDIR(src/bouncer.h)
 AC_CONFIG_HEADER(config.h)
+AC_PREREQ(2.59)
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -68,12 +69,21 @@ AC_CHECK_HEADERS([sys/ucred.h], [], [], [
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_INLINE
 AC_C_BIGENDIAN
+AC_SYS_LARGEFILE
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
-AC_TYPE_UINT8_T
-AC_TYPE_UINT32_T
-AC_TYPE_UINT64_T
-AC_SYS_LARGEFILE
+
+dnl autoconf 2.59 does not have UINT macros nor docdir
+m4_ifdef([AC_TYPE_UINT8_T], [
+  AC_TYPE_UINT8_T
+  AC_TYPE_UINT32_T
+  AC_TYPE_UINT64_T
+], [
+  datarootdir='${prefix}/share'
+  docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
+  AC_SUBST(datarootdir)
+  AC_SUBST(docdir)
+])
 
 dnl Checks for library functions.
 AC_CHECK_FUNCS(strlcpy strlcat getpeereid getpeerucred basename)
