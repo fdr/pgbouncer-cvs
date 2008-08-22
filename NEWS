@@ -1,3 +1,7 @@
+2008-xx-xx  -  PgBouncer 1.2.4  -  ""
+
+  * Allow '.' and '-' in database names (Alberto De Boni)
+
 2008-08-08  -  PgBouncer 1.2.3  -  "Carefully Selected Bytes"
 
   * Disable SO_ACCEPTFILTER code for BSDs which did not work.

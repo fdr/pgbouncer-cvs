@@ -662,7 +662,7 @@ bool iniparser(const char *fn, ConfSection *sect_list, bool reload)
 
 		/* read key val */
 		key = p;
-		while (*p && (isalnum(*p) || *p == '_')) p++;
+		while (*p && (isalnum(*p) || *p == '_' || *p == '.' || *p == '-')) p++;
 		klen = p - key;
 
 		/* expect '=', skip it */
