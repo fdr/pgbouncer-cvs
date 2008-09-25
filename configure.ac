@@ -150,16 +150,15 @@ AC_EGREP_CPP([HTTP_SERVUNAVAIL],
 # autoconf does not want to find 'install', if not using automake...
 INSTALL=install
 
-AC_ARG_ENABLE(debug, AC_HELP_STRING([--enable-debug],[build binary with debugging symbols]))
+AC_ARG_ENABLE(debug,
+  AC_HELP_STRING([--disable-debug],[strip binary]),
+  [], [enable_debug=yes])
 AC_MSG_CHECKING([whether to build debug binary])
 if test "$enable_debug" = "yes"; then
   LDFLAGS="-g $LDFLAGS"
   BININSTALL="$INSTALL"
   AC_MSG_RESULT([yes])
 else
-  if test x"$GCC" = xyes; then
-    CFLAGS="$CFLAGS -fomit-frame-pointer"
-  fi
   BININSTALL="$INSTALL -s"
   AC_MSG_RESULT([no])
 fi
@@ -186,7 +185,7 @@ else
 fi
 
 if test \! "$srcdir" = "$builddir"; then
-  CPPFLAGS="$CPPFLAGS -I\$(builddir)/include"
+  CPPFLAGS="-I\$(builddir)/include $CPPFLAGS"
 fi
 
 dnl Output findings
