@@ -1,6 +1,9 @@
 2008-xx-xx  -  PgBouncer 1.2.4  -  ""
 
   * Allow '.' and '-' in database names (Alberto De Boni)
+  * Put ./include at the start of CPPFLAGS (Bjorn Munch)
+  * --enable-debug is now default (unstripped binary)
+  * --disable-debug does not add -fomit-frame-pointer anymore
 
 2008-08-08  -  PgBouncer 1.2.3  -  "Carefully Selected Bytes"
 
