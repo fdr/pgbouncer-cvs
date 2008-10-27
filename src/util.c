@@ -724,6 +724,8 @@ void safe_evtimer_add(struct event *ev, struct timeval *tv)
 	if (res >= 0)
 		return;
 
+	log_warning("evtimer_add failed, postponing");
+
 	if (timer_backup_used >= TIMER_BACKUP_SLOTS)
 		fatal_perror("TIMER_BACKUP_SLOTS full");
 
@@ -736,10 +738,13 @@ void rescue_timers(void)
 {
 	struct timer_slot *ts;
 	while (timer_backup_used) {
+		log_warning("rescuing timer");
 		ts = &timer_backup_list[timer_backup_used - 1];
 		if (evtimer_add(ts->ev, &ts->tv) < 0)
 			break;
 		timer_backup_used--;
 	}
+	if (timer_backup_used)
+		log_warning("rescuing failed");
 }
 
