@@ -15,6 +15,7 @@
 static void log_error(const char *, ...);
 static void log_debug(const char *, ...);
 static void fatal(const char *fmt, ...);
+static void fatal_noexit(const char *fmt, ...);
 
 #include "list.h"
 
@@ -116,6 +117,16 @@ static void fatal_perror(const char *err)
 {
 	log_error("%s: %s", err, strerror(errno));
 	exit(1);
+}
+
+static void fatal_noexit(const char *fmt, ...)
+{
+	va_list ap;
+	char buf[1024];
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	printf("FATAL: %s\n", buf);
 }
 
 static void fatal(const char *fmt, ...)
