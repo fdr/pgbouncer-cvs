@@ -619,7 +619,7 @@ int main(int argc, char *argv[])
 	char *arg_username = NULL;
 
 	/* parse cmdline */
-	while ((c = getopt(argc, argv, "avhdVRu:")) != EOF) {
+	while ((c = getopt(argc, argv, "qvhdVRu:")) != EOF) {
 		switch (c) {
 		case 'R':
 			cf_reboot = 1;
