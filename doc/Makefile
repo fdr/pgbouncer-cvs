@@ -12,16 +12,16 @@ all: $(MANPAGES)
 install: $(MANPAGES)
 	mkdir -p $(DESTDIR)$(mandir)/man1/
 	mkdir -p $(DESTDIR)$(mandir)/man5/
-	install -m 644 pgbouncer.1 $(DESTDIR)$(mandir)/man1/
-	install -m 644 pgbouncer.5 $(DESTDIR)$(mandir)/man5/
+	$(INSTALL) -m 644 pgbouncer.1 $(DESTDIR)$(mandir)/man1/
+	$(INSTALL) -m 644 pgbouncer.5 $(DESTDIR)$(mandir)/man5/
 else
 all:
 
 install:
 	mkdir -p $(DESTDIR)$(mandir)/man1/
 	mkdir -p $(DESTDIR)$(mandir)/man5/
-	test -f pgbouncer.1 && install -m 644 pgbouncer.1 $(DESTDIR)$(mandir)/man1/
-	test -f pgbouncer.5 && install -m 644 pgbouncer.5 $(DESTDIR)$(mandir)/man5/
+	test -f pgbouncer.1 && $(INSTALL) -m 644 pgbouncer.1 $(DESTDIR)$(mandir)/man1/
+	test -f pgbouncer.5 && $(INSTALL) -m 644 pgbouncer.5 $(DESTDIR)$(mandir)/man5/
 endif
 
 html: $(HTML)

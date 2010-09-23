@@ -31,6 +31,12 @@
 /* glibc is useless without it */
 #define _GNU_SOURCE
 
+/* solaris is broken otherwise */
+#if defined(__sun)
+#define _XPG4_2
+#define __EXTENSIONS__
+#endif
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/time.h>

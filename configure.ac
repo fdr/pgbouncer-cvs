@@ -93,6 +93,11 @@ if test x"$GCC" = xyes; then
     CFLAGS="$good_CFLAGS $warnings $f"
     AC_COMPILE_IFELSE([void foo(void){}], [warnings="$warnings $f"])
   done
+ 
+  # avoid -Wextra if missing-field.initializers does not work
+  echo "$warnings" | grep missing-field-initializers > /dev/null \
+  || warnings=`echo "$warnings"|sed 's/-Wextra//'`
+
   CFLAGS="$good_CFLAGS $warnings"
   AC_MSG_RESULT([$warnings])
 fi

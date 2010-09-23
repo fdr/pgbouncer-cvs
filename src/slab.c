@@ -23,9 +23,9 @@
  * - if init func is not given, memset() is done
  */
 
-#include <sys/param.h>
-
 #include "bouncer.h"
+
+#include <sys/param.h>
 
 #define CUSTOM_ALIGN(x, a) (((unsigned long)(x) + ((a) - 1)) & ~((a) - 1))
 
