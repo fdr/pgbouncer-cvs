@@ -36,8 +36,6 @@ builddir = @builddir@
 abs_builddir = @abs_builddir@
 abs_top_builddir = @abs_top_builddir@
 
-# autoconf does not want to find 'install'
-# if im not using automake...
 INSTALL = @INSTALL@
 BININSTALL = @BININSTALL@
 

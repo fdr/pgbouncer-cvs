@@ -24,6 +24,9 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_CPP
 
+dnl ./install-sh must be manually set up if not using automake
+AC_PROG_INSTALL
+
 dnl Check if linker supports -Wl,--as-needed
 dnl That helps to get rid of unnecessary -lrt
 if test "$GCC" = "yes"; then
@@ -181,9 +184,6 @@ AC_EGREP_CPP([HTTP_SERVUNAVAIL],
 
 AC_CHECK_FUNCS(event_loopbreak)
 
-# autoconf does not want to find 'install', if not using automake...
-INSTALL=install
-
 AC_ARG_ENABLE(debug,
   AC_HELP_STRING([--disable-debug],[strip binary]),
   [], [enable_debug=yes])
@@ -197,7 +197,6 @@ else
   AC_MSG_RESULT([no])
 fi
 AC_SUBST(enable_debug)
-AC_SUBST(INSTALL)
 AC_SUBST(BININSTALL)
 
 AC_ARG_ENABLE(cassert, AC_HELP_STRING([--enable-cassert],[turn on assert checking in code]))
