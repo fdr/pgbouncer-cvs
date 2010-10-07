@@ -347,6 +347,8 @@ static void pool_client_maint(PgPool *pool)
 		statlist_for_each_safe(item, &pool->waiting_client_list, tmp) {
 			client = container_of(item, PgSocket, head);
 			age = now - client->connect_time;
+			if (!client->wait_for_welcome)
+				continue;
 			if (age > cf_client_login_timeout)
 				disconnect_client(client, true, "client_login_timeout (server down)");
 		}
